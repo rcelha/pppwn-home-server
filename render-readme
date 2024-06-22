@@ -1,0 +1,8 @@
+#!/bin/sh
+
+cp ./README.tpl.md ./README.md
+
+echo '```' >> README.md
+grep -i todo Dockerfile >> README.md
+grep -ri todo src  >> README.md
+echo '```' >> README.md

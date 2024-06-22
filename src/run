@@ -1,0 +1,74 @@
+#!/bin/bash
+
+source ./echo_utils.bash
+source ./process_utils.bash
+
+echo::ok "***************"
+echo::ok " Network Reset "
+echo::ok "***************"
+
+echo::nok Network Reset
+ip link set $INTERFACE down
+wait_cmd
+echo::ok "   -> Down"
+ip link set $INTERFACE up
+wait_cmd
+echo::ok "   -> UP"
+ip addr add 192.168.2.1/24 dev $INTERFACE
+wait_cmd
+echo::ok "   -> Done"
+
+echo::nok Waiting for Link
+while [[ ! $(ip link show $INTERFACE) == *"state UP"* ]]
+do
+    wait_cmd
+done
+echo::ok "   -> Link Found"
+
+
+echo::ok "********************"
+echo::ok " Starting Jailbreak "
+echo::ok "********************"
+
+# TODO Add a test to skip pppwn
+
+pppwn --interface $INTERFACE \
+      --fw $FIRMWAREVERSION \
+      --stage1 /usr/src/app/stages/stage1_$FIRMWAREVERSION.bin \
+      --stage2 /usr/src/app/stages/stage2_$FIRMWAREVERSION.bin \
+      --timeout 10 --auto-retry --real-sleep || exit 1
+
+echo
+echo::ok "Jailbreak is OK"
+echo
+
+echo::ok "****************"
+echo::ok "Internet Sharing"
+echo::ok "****************"
+
+echo::nok Configure Firewall
+ufw enable
+ufw route allow in on $INTERFACE out on $INTERFACE_INTERNET
+ufw disable
+ufw enable
+echo::ok "   -> Done"
+
+echo::nok Start PPPOE Server
+pppoe-server -I $INTERFACE -T 60 -N 1 -C PPPWN -S PPPWN -L 192.168.2.1 -R 192.168.2.2
+wait_cmd
+echo::ok "   -> Server Running"
+
+echo::nok Waiting PPPOE Connection
+while [[ ! $(ip link show ppp0) ]]
+do
+    sleep 10
+done
+echo::ok "Console Connected!"
+
+# TODO add some retries here
+while [[ $(ip link show ppp0) ]]
+do
+    echo -n .
+    sleep 10
+done
+echo::nok "Connection Closed"

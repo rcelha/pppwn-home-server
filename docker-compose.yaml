@@ -1,0 +1,15 @@
+services:
+  internet-share:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    network_mode: "host"
+    privileged: true
+    environment:
+      - INTERFACE=enx000ec6c4c546
+      - INTERFACE_INTERNET=wlp0s20f3
+      - FIRMWAREVERSION=1100
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW

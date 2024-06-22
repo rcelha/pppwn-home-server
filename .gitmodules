@@ -1,0 +1,6 @@
+[submodule "vendor/PPPwn"]
+	path = vendor/PPPwn
+	url = git@github.com:TheOfficialFloW/PPPwn.git
+[submodule "vendor/PPPwn_cpp"]
+	path = vendor/PPPwn_cpp
+	url = git@github.com:xfangfang/PPPwn_cpp.git
