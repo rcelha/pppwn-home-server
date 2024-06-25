@@ -1,0 +1,20 @@
+#!/bin/bash
+
+source ./echo_utils.bash
+source ./process_utils.bash
+
+echo::ok "********************"
+echo::ok " Starting Jailbreak "
+echo::ok "********************"
+
+# TODO Add a test to skip pppwn
+
+pppwn --interface $INTERFACE \
+      --fw $FIRMWAREVERSION \
+      --stage1 /usr/src/app/stages/stage1_$FIRMWAREVERSION.bin \
+      --stage2 /usr/src/app/stages/stage2_$FIRMWAREVERSION.bin \
+      --timeout 10 --auto-retry || exit 1
+
+echo
+echo::ok "Jailbreak is OK"
+echo

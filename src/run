@@ -1,72 +1,66 @@
 #!/bin/bash
 
+SKIP_RETRIES=${SKIP_RETRIES:-10}
+
+cleanup() {
+  echo::nok Clean up
+  net::firewall_stop
+  net::pppoe_stop
+  echo::ok "  -> Done"
+}
+
+finally() {
+  local status=$?
+  cleanup
+  exit $status
+}
+
+trap finally 0
+
 source ./echo_utils.bash
 source ./process_utils.bash
+source ./network_utils.bash
+source ./jailbreak_utils.bash
 
-echo::ok "***************"
-echo::ok " Network Reset "
-echo::ok "***************"
+net::firewall_stop
+net::pppoe_start
 
-echo::nok Network Reset
-ip link set $INTERFACE down
-wait_cmd
-echo::ok "   -> Down"
-ip link set $INTERFACE up
-wait_cmd
-echo::ok "   -> UP"
-ip addr add 192.168.2.1/24 dev $INTERFACE
-wait_cmd
-echo::ok "   -> Done"
+jailbreak::detect_goldhen
+goldhen_found=$?
 
-echo::nok Waiting for Link
-while [[ ! $(ip link show $INTERFACE) == *"state UP"* ]]
-do
-    wait_cmd
-done
-echo::ok "   -> Link Found"
+# net::pppoe_stop
 
+if [[ $goldhen_found == 0 ]]
+then
+  echo::nok Goldhen Not Detected
+  ./run-jailbreak
+else
+  echo::ok Goldhen Detected: Skipping Jailbreak
+fi
 
-echo::ok "********************"
-echo::ok " Starting Jailbreak "
-echo::ok "********************"
-
-# TODO Add a test to skip pppwn
-
-pppwn --interface $INTERFACE \
-      --fw $FIRMWAREVERSION \
-      --stage1 /usr/src/app/stages/stage1_$FIRMWAREVERSION.bin \
-      --stage2 /usr/src/app/stages/stage2_$FIRMWAREVERSION.bin \
-      --timeout 10 --auto-retry --real-sleep || exit 1
-
-echo
-echo::ok "Jailbreak is OK"
-echo
-
+# Configure network sharing after PPPwned
 echo::ok "****************"
 echo::ok "Internet Sharing"
 echo::ok "****************"
 
-echo::nok Configure Firewall
-ufw enable
-ufw route allow in on $INTERFACE out on $INTERFACE_INTERNET
-ufw disable
-ufw enable
-echo::ok "   -> Done"
+# ip addr add 192.168.2.1/24 dev $INTERFACE
+net::wait_conn
+net::firewall_start
+net::pppoe_start
 
-echo::nok Start PPPOE Server
-pppoe-server -I $INTERFACE -T 60 -N 1 -C PPPWN -S PPPWN -L 192.168.2.1 -R 192.168.2.2
-wait_cmd
-echo::ok "   -> Server Running"
+ppp=$(ip link | grep ": ppp" | cut -d : -f2)
 
+# Wait for a client
 echo::nok Waiting PPPOE Connection
-while [[ ! $(ip link show ppp0) ]]
+while [[ ! $(ip link show $ppp) ]]
 do
     sleep 10
 done
 echo::ok "Console Connected!"
 
+# Quit when the client disconnects
 # TODO add some retries here
-while [[ $(ip link show ppp0) ]]
+while [[ $(ip link show $ppp) ]]
 do
     echo -n .
     sleep 10

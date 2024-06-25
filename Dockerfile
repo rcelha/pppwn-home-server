@@ -30,7 +30,7 @@ RUN cmake -B build && cmake --build build -t pppwn
 ########################################################
 FROM ubuntu:24.04
 RUN apt update && \
-    apt install -y ppp pppoe nmap iptables dnsmasq iproute2 ufw
+    apt install -y ppp pppoe nmap iproute2 ufw netcat-traditional psmisc
 
 # TODO: Re-enable stage building
 # COPY --from=stage_builder /output/ /usr/src/app/stages
