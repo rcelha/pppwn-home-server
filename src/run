@@ -1,12 +1,17 @@
 #!/bin/bash
 
+source ./echo_utils.bash
+source ./process_utils.bash
+source ./network_utils.bash
+source ./jailbreak_utils.bash
+
 SKIP_RETRIES=${SKIP_RETRIES:-10}
 
 cleanup() {
   echo::nok Clean up
   net::firewall_stop
   net::pppoe_stop
-  echo::ok "  -> Done"
+  echo::nok "  -> Done"
 }
 
 finally() {
@@ -17,25 +22,22 @@ finally() {
 
 trap finally 0
 
-source ./echo_utils.bash
-source ./process_utils.bash
-source ./network_utils.bash
-source ./jailbreak_utils.bash
-
 net::firewall_stop
+net::start
 net::pppoe_start
 
+echo::debug Starting Goldhen Detection
 jailbreak::detect_goldhen
 goldhen_found=$?
-
-# net::pppoe_stop
+echo::debug jailbreak::detect_goldhen=$goldhen_found
+net::pppoe_stop
 
 if [[ $goldhen_found == 0 ]]
 then
+  echo::ok Goldhen Detected: Skipping Jailbreak
+else
   echo::nok Goldhen Not Detected
   ./run-jailbreak
-else
-  echo::ok Goldhen Detected: Skipping Jailbreak
 fi
 
 # Configure network sharing after PPPwned
@@ -58,9 +60,13 @@ do
 done
 echo::ok "Console Connected!"
 
+is_connected() {
+  ip a show dev $ppp | grep 192.168.2.2
+}
+
 # Quit when the client disconnects
 # TODO add some retries here
-while [[ $(ip link show $ppp) ]]
+while proc::retry is_connected
 do
     echo -n .
     sleep 10
